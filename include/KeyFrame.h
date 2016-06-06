@@ -160,6 +160,9 @@ public:
     const int N;
 
     // KeyPoints, stereo coordinate and descriptors (all associated by an index)
+    /*
+        mvKeysUn means keypoint which is undistorted
+    */
     const std::vector<cv::KeyPoint> mvKeys;
     const std::vector<cv::KeyPoint> mvKeysUn;
     const std::vector<float> mvuRight; // negative value for monocular points

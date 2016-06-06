@@ -463,6 +463,10 @@ void Frame::ComputeImageBounds(const cv::Mat &imLeft)
     }
 }
 
+/*
+    mbf = baseline*focal
+    z = baseline*focal/disparity
+*/
 void Frame::ComputeStereoMatches()
 {
     mvuRight = vector<float>(N,-1.0f);
@@ -556,7 +560,7 @@ void Frame::ComputeStereoMatches()
             const float scaledvL = round(kpL.pt.y*scaleFactor);
             const float scaleduR0 = round(uR0*scaleFactor);
 
-            // sliding window search
+            // sliding window search(5*5)
             const int w = 5;
             cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1);
             IL.convertTo(IL,CV_32F);
@@ -577,8 +581,13 @@ void Frame::ComputeStereoMatches()
             {
                 cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
                 IR.convertTo(IR,CV_32F);
+
+                /*
+                    IR(5,5) * ones(IR_rows,IR_cols,CV_32F)
+                */
                 IR = IR - IR.at<float>(w,w) *cv::Mat::ones(IR.rows,IR.cols,CV_32F);
 
+                //dist = ||IL-IR||
                 float dist = cv::norm(IL,IR,cv::NORM_L1);
                 if(dist<bestDist)
                 {
@@ -603,6 +612,10 @@ void Frame::ComputeStereoMatches()
                 continue;
 
             // Re-scaled coordinate
+            /*
+                (T-(ul-ur)) /T = (z-f)/z
+                disparity = ul-ur
+            */
             float bestuR = mvScaleFactors[kpL.octave]*((float)scaleduR0+(float)bestincR+deltaR);
 
             float disparity = (uL-bestuR);

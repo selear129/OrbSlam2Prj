@@ -914,6 +914,9 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
             if(pKF->mvuRight[idx]>=0)
             {
                 // Check reprojection error in stereo
+                /*
+                    kp:pt is (u,v) of img coordinate
+                */
                 const float &kpx = kp.pt.x;
                 const float &kpy = kp.pt.y;
                 const float &kpr = pKF->mvuRight[idx];

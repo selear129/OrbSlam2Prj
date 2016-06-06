@@ -392,6 +392,9 @@ void Tracking::Track()
             }
         }
 
+        /*
+            mpReferenceKF will be update at CreateNewKeyFrame() and TrackLocalMap()
+        */
         mCurrentFrame.mpReferenceKF = mpReferenceKF;
 
         // If we have an initial estimation of the camera pose and matching. Track the local map.
@@ -454,6 +457,9 @@ void Tracking::Track()
             mlpTemporalPoints.clear();
 
             // Check if we need to insert a new keyframe
+            /*
+                if mbOnlyTracking, don't CreateNewKeyFrame
+            */
             if(NeedNewKeyFrame())
                 CreateNewKeyFrame();
 
@@ -486,6 +492,11 @@ void Tracking::Track()
     }
 
     // Store frame pose information to retrieve the complete camera trajectory afterwards.
+    /*
+        nlRelativeFramePoses use for update_last_frame()
+
+        Tcr = Tcw*Ref_Twc
+    */
     if(!mCurrentFrame.mTcw.empty())
     {
         cv::Mat Tcr = mCurrentFrame.mTcw*mCurrentFrame.mpReferenceKF->GetPoseInverse();
@@ -918,6 +929,9 @@ bool Tracking::TrackWithMotionModel()
         }
     }    
 
+    /*
+        if mbOnlyTracking, judge mbVo use nmatchesMap numbers
+    */
     if(mbOnlyTracking)
     {
         mbVO = nmatchesMap<10;
@@ -990,6 +1004,9 @@ bool Tracking::NeedNewKeyFrame()
         return false;
 
     // Tracked MapPoints in the reference keyframe
+    /*
+        nMinObs is threshold of mappoint's observation numbers
+    */
     int nMinObs = 3;
     if(nKFs<=2)
         nMinObs=2;
@@ -1594,6 +1611,11 @@ void Tracking::ChangeCalibration(const string &strSettingPath)
     Frame::mbInitialComputations = true;
 }
 
+/*
+    mbOnlyTracking can choose at MapDrawer viewer by users
+
+    if mbOnlyTracking, track but don't create new keyframe
+*/
 void Tracking::InformOnlyTracking(const bool &flag)
 {
     mbOnlyTracking = flag;

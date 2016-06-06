@@ -225,6 +225,12 @@ void MapDrawer::SetCurrentCameraPose(const cv::Mat &Tcw)
     mCameraPose = Tcw.clone();
 }
 
+/*
+    inv([R t;0 1]) = [R' -R*t;0 1]
+    
+    t = origin of word coordinate in camera
+    -R*t = camera coordinate in 3D word  
+*/
 void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M)
 {
     if(!mCameraPose.empty())
