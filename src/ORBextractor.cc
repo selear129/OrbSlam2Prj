@@ -74,6 +74,10 @@ const int HALF_PATCH_SIZE = 15;
 const int EDGE_THRESHOLD = 19;
 
 
+/*
+    calc moment 
+    angle = atan(M01/M10)
+*/
 static float IC_Angle(const Mat& image, Point2f pt,  const vector<int> & u_max)
 {
     int m_01 = 0, m_10 = 0;
@@ -103,7 +107,10 @@ static float IC_Angle(const Mat& image, Point2f pt,  const vector<int> & u_max)
     return fastAtan2((float)m_01, (float)m_10);
 }
 
-
+/*
+    1. Get keypoint by FAST
+    2. Calc BRIEF discriptor use pattern compare
+*/
 const float factorPI = (float)(CV_PI/180.f);
 static void computeOrbDescriptor(const KeyPoint& kpt,
                                  const Mat& img, const Point* pattern,
@@ -407,6 +414,14 @@ static int bit_pattern_31_[256*4] =
     -1,-6, 0,-11/*mean (0.127148), correlation (0.547401)*/
 };
 
+/*
+    scaleFactor is store in fsetting file
+    scaleFactor = 1.2
+    mvScaleFactor[i] = 1.2^i
+    mvInvScaleFactor[i] = 1/mvScaleFactor[i] = 1/(1.2^i)
+    mvLevelSigma2[i] = mvScaleFactor[i]^2
+    mvInvLevelSigma2[i] = 1/(mvScaleFactor[i]^2)
+*/
 ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels,
          int _iniThFAST, int _minThFAST):
     nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels),
@@ -416,6 +431,7 @@ ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels,
     mvLevelSigma2.resize(nlevels);
     mvScaleFactor[0]=1.0f;
     mvLevelSigma2[0]=1.0f;
+
     for(int i=1; i<nlevels; i++)
     {
         mvScaleFactor[i]=mvScaleFactor[i-1]*scaleFactor;
@@ -451,6 +467,11 @@ ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels,
 
     //This is for orientation
     // pre-compute the end of a row in a circular patch
+    /*
+        vmax = cvFloor(11.606) = 11
+        vmin = cvCeil(10.606) = 11
+        umax = [15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 6, 3]
+    */
     umax.resize(HALF_PATCH_SIZE + 1);
 
     int v, v0, vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
@@ -762,6 +783,20 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
     return vResultKeys;
 }
 
+/*
+    EDGE_THRESHOLD = 19-3
+
+    Size sz(cvRound(image.cols*scale), cvRound(image.rows*scale))
+    mvImagePyramid.size() : (sz.width+19*2, sz*height+19*2)
+
+    mvImagePyramid :
+        each row: 0-->(19-3) col is border, (cols-19+3)-->cols is border
+        each col: 0-->(19-3) col is border, (rows-19+3)-->rows is border
+    image valid data is in Rect[19,19,rows-19,cols-19]
+
+    minBorderX = 19-3,       minBorderY = 19-3
+    maxBorderX = cols-19+3,  maxBorderY = rows-19+3
+*/
 void ORBextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoints)
 {
     allKeypoints.resize(nlevels);
@@ -805,6 +840,14 @@ void ORBextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoin
                 if(maxX>maxBorderX)
                     maxX = maxBorderX;
 
+                /*
+                    void FAST(InputArray image, vector<KeyPoint>& keypoints, 
+                            int threshold, bool nonmaxSuppression=true)
+
+                    FAST img range is rect[iniX,maxX,iniY,maxY],
+                    keypoints.pt will be in [img.rowRange(iniY,maxY).colRange(iniX,maxX)]
+                    so (*vit).pt.x+=j*wCell is the real coordinate of keypoints
+                */
                 vector<cv::KeyPoint> vKeysCell;
                 FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),
                      vKeysCell,iniThFAST,true);
@@ -1104,6 +1147,10 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
     }
 }
 
+/*
+    ScaleFactor = [1, 1.2,  1.44,  1.728, 2.0736, 2.4883, 2.9860, 3.5832]
+    InvScaleFac = [1, 0.83, 0.694, 0.579, 0.4823, 0.4019, 0.3349, 0.2791]
+*/
 void ORBextractor::ComputePyramid(cv::Mat image)
 {
     for (int level = 0; level < nlevels; ++level)
@@ -1119,6 +1166,12 @@ void ORBextractor::ComputePyramid(cv::Mat image)
         {
             resize(mvImagePyramid[level-1], mvImagePyramid[level], sz, 0, 0, INTER_LINEAR);
 
+            /*
+                copyMakeBorder( src, dst, top, bottom, left, right, borderType, value ):
+                    src is source img;
+                    dst is destination img;
+                    top,bottom,left,right: dist to all border of src;
+            */
             copyMakeBorder(mvImagePyramid[level], temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
                            BORDER_REFLECT_101+BORDER_ISOLATED);            
         }
